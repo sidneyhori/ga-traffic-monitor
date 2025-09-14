@@ -1,5 +1,5 @@
 import React from 'react'
-import { Users, Eye, MousePointer, Clock, TrendingUp, TrendingDown } from 'lucide-react'
+import { Users, Eye, MousePointer, Clock, TrendingUp, TrendingDown, HelpCircle } from 'lucide-react'
 import {
   LineChart,
   Line,
@@ -60,7 +60,8 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
     change,
     changePercent,
     icon: Icon,
-    formatter = formatNumber
+    formatter = formatNumber,
+    tooltip
   }: {
     title: string
     value: number
@@ -68,11 +69,23 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
     changePercent: number
     icon: any
     formatter?: (num: number) => string
+    tooltip?: string
   }) => (
     <div className="bg-white rounded-lg shadow p-6">
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-gray-500">{title}</p>
+          <div className="flex items-center gap-1">
+            <p className="text-sm font-medium text-gray-500">{title}</p>
+            {tooltip && (
+              <div className="relative group">
+                <HelpCircle className="h-4 w-4 text-gray-400 cursor-help" />
+                <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-4 py-3 text-xs text-white bg-gray-900 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none max-w-[800px] text-center z-10">
+                  {tooltip}
+                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-b-gray-900"></div>
+                </div>
+              </div>
+            )}
+          </div>
           <p className="text-2xl sm:text-3xl font-bold text-gray-900 truncate">{formatter(value)}</p>
         </div>
         <Icon className="h-8 w-8 text-primary-600 flex-shrink-0 ml-2" />
@@ -116,6 +129,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
           change={data.metrics.users.change}
           changePercent={data.metrics.users.changePercent}
           icon={Users}
+          tooltip="The number of unique visitors who visited your website during the selected period"
         />
         <MetricCard
           title="Sessions"
@@ -123,6 +137,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
           change={data.metrics.sessions.change}
           changePercent={data.metrics.sessions.changePercent}
           icon={MousePointer}
+          tooltip="The number of individual visits to your website. A session can include multiple page views"
         />
         <MetricCard
           title="Pageviews"
@@ -130,6 +145,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
           change={data.metrics.pageviews.change}
           changePercent={data.metrics.pageviews.changePercent}
           icon={Eye}
+          tooltip="The total number of pages viewed on your website. Multiple views of the same page count separately"
         />
         <MetricCard
           title="Bounce Rate"
@@ -138,6 +154,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
           changePercent={data.metrics.bounceRate.changePercent}
           icon={TrendingDown}
           formatter={(num) => `${num.toFixed(1)}%`}
+          tooltip="The percentage of single-page sessions where visitors left without interacting further. Lower is generally better"
         />
         <MetricCard
           title="Avg Session Duration"
@@ -146,6 +163,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
           changePercent={data.metrics.avgSessionDuration.changePercent}
           icon={Clock}
           formatter={formatDuration}
+          tooltip="The average amount of time visitors spend on your website during a session. Longer duration indicates higher engagement"
         />
       </div>
 
@@ -192,25 +210,31 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
         {/* Device Breakdown */}
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Device Breakdown</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={data.devices}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ device, percent }) => `${device}: ${(percent * 100).toFixed(0)}%`}
-                outerRadius={80}
-                fill="#8884d8"
-                dataKey="users"
-              >
-                {data.devices.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip formatter={(value) => [formatNumber(value as number), 'Users']} />
-            </PieChart>
-          </ResponsiveContainer>
+          {data.devices && data.devices.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={data.devices}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ device, percent }) => `${device}: ${(percent * 100).toFixed(0)}%`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="users"
+                >
+                  {data.devices.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value) => [formatNumber(value as number), 'Users']} />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex items-center justify-center h-[300px] text-gray-500">
+              <p>No device breakdown data available</p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -221,32 +245,38 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
           <div className="px-6 py-4 border-b border-gray-200">
             <h3 className="text-lg font-medium text-gray-900">Top Pages</h3>
           </div>
-          <div className="overflow-hidden">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Page</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Views</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bounce Rate</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {data.topPages.slice(0, 5).map((page, index) => (
-                  <tr key={index}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 max-w-xs truncate">
-                      {page.page}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatNumber(page.pageviews)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {page.bounceRate.toFixed(1)}%
-                    </td>
+          {data.topPages && data.topPages.length > 0 ? (
+            <div className="overflow-hidden">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Page</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Views</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bounce Rate</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {data.topPages.slice(0, 5).map((page, index) => (
+                    <tr key={index}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 max-w-xs truncate">
+                        {page.page}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {formatNumber(page.pageviews)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {page.bounceRate.toFixed(1)}%
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center py-12 text-gray-500">
+              <p>No top pages data available</p>
+            </div>
+          )}
         </div>
 
         {/* Traffic Sources */}
@@ -254,32 +284,38 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
           <div className="px-6 py-4 border-b border-gray-200">
             <h3 className="text-lg font-medium text-gray-900">Traffic Sources</h3>
           </div>
-          <div className="overflow-hidden">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Source</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Users</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sessions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {data.trafficSources.slice(0, 5).map((source, index) => (
-                  <tr key={index}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {source.source}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatNumber(source.users)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatNumber(source.sessions)}
-                    </td>
+          {data.trafficSources && data.trafficSources.length > 0 ? (
+            <div className="overflow-hidden">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Source</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Users</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sessions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {data.trafficSources.slice(0, 5).map((source, index) => (
+                    <tr key={index}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {source.source}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {formatNumber(source.users)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {formatNumber(source.sessions)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center py-12 text-gray-500">
+              <p>No traffic sources data available</p>
+            </div>
+          )}
         </div>
       </div>
     </div>

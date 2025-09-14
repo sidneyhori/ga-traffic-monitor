@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { BarChart3, Users, Eye, Clock, RefreshCw, AlertCircle } from 'lucide-react'
+import { BarChart3, Users, Eye, Clock, RefreshCw, AlertCircle, Calendar } from 'lucide-react'
 import Dashboard from './components/Dashboard'
 import { AnalyticsData } from './types/analytics'
 
@@ -8,13 +8,14 @@ function App() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const [timeRange, setTimeRange] = useState<number>(30)
 
   const fetchAnalyticsData = async () => {
     try {
       setLoading(true)
       setError(null)
 
-      const response = await fetch('/api/analytics')
+      const response = await fetch(`/api/analytics?days=${timeRange}`)
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
@@ -36,7 +37,7 @@ function App() {
     // Auto-refresh every 5 minutes
     const interval = setInterval(fetchAnalyticsData, 5 * 60 * 1000)
     return () => clearInterval(interval)
-  }, [])
+  }, [timeRange])
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -69,6 +70,33 @@ function App() {
           </div>
         </div>
       </header>
+
+      {/* Time Range Filter */}
+      <div className="bg-white border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <Calendar className="h-5 w-5 text-gray-500" />
+              <span className="text-sm font-medium text-gray-700">Time Range:</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              {[1, 7, 30, 90].map((days) => (
+                <button
+                  key={days}
+                  onClick={() => setTimeRange(days)}
+                  className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                    timeRange === days
+                      ? 'bg-primary-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {days === 1 ? 'Today' : days === 7 ? 'Last 7 days' : days === 30 ? 'Last 30 days' : 'Last 90 days'}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

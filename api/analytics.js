@@ -43,12 +43,12 @@ const getComparisonDateRange = (days = 30) => {
 };
 
 // Mock data generator for development/demo
-const generateMockData = () => {
-  const dateRange = getDateRange(30);
+const generateMockData = (days = 30) => {
+  const dateRange = getDateRange(days);
   const chartData = [];
 
-  // Generate 30 days of mock data
-  for (let i = 29; i >= 0; i--) {
+  // Generate mock data for specified number of days
+  for (let i = days - 1; i >= 0; i--) {
     const date = new Date();
     date.setDate(date.getDate() - i);
 
@@ -167,8 +167,44 @@ async function fetchGA4Data(authClient, propertyId, dateRange) {
       },
     });
 
+    // Get traffic sources breakdown
+    const sourcesResponse = await analyticsData.properties.runReport({
+      auth: authClient,
+      property: `properties/${propertyId}`,
+      requestBody: {
+        dateRanges: [{ startDate: dateRange.startDate, endDate: dateRange.endDate }],
+        metrics: [
+          { name: 'activeUsers' },
+          { name: 'sessions' },
+          { name: 'bounceRate' },
+        ],
+        dimensions: [{ name: 'sessionSource' }],
+        orderBys: [{ metric: { metricName: 'activeUsers' }, desc: true }],
+        limit: 10,
+      },
+    });
+
+    // Get top pages breakdown
+    const pagesResponse = await analyticsData.properties.runReport({
+      auth: authClient,
+      property: `properties/${propertyId}`,
+      requestBody: {
+        dateRanges: [{ startDate: dateRange.startDate, endDate: dateRange.endDate }],
+        metrics: [
+          { name: 'screenPageViews' },
+          { name: 'bounceRate' },
+          { name: 'averageSessionDuration' },
+        ],
+        dimensions: [{ name: 'pagePath' }],
+        orderBys: [{ metric: { metricName: 'screenPageViews' }, desc: true }],
+        limit: 10,
+      },
+    });
+
     const rows = timeSeriesResponse.data.rows || [];
     const deviceRows = deviceResponse.data.rows || [];
+    const sourcesRows = sourcesResponse.data.rows || [];
+    const pagesRows = pagesResponse.data.rows || [];
 
     // Process chart data
     const chartData = rows.map(row => ({
@@ -185,6 +221,23 @@ async function fetchGA4Data(authClient, propertyId, dateRange) {
       users: parseInt(row.metricValues[0].value || 0),
       sessions: parseInt(row.metricValues[1].value || 0),
       bounceRate: parseFloat(row.metricValues[2].value || 0) * 100,
+    }));
+
+    // Process traffic sources data
+    const trafficSources = sourcesRows.map(row => ({
+      source: row.dimensionValues[0].value,
+      users: parseInt(row.metricValues[0].value || 0),
+      sessions: parseInt(row.metricValues[1].value || 0),
+      bounceRate: parseFloat(row.metricValues[2].value || 0) * 100,
+    }));
+
+    // Process top pages data
+    const topPages = pagesRows.map(row => ({
+      page: row.dimensionValues[0].value,
+      pageviews: parseInt(row.metricValues[0].value || 0),
+      uniquePageviews: parseInt(row.metricValues[0].value || 0), // GA4 doesn't have unique pageviews, using pageviews
+      bounceRate: parseFloat(row.metricValues[1].value || 0) * 100,
+      avgTimeOnPage: parseFloat(row.metricValues[2].value || 0),
     }));
 
     // Calculate totals
@@ -212,13 +265,10 @@ async function fetchGA4Data(authClient, propertyId, dateRange) {
     return {
       metrics,
       chartData,
-      topPages: [{ page: '/', pageviews: totals.pageviews, uniquePageviews: totals.pageviews, bounceRate: avgBounceRate, avgTimeOnPage: avgDuration }],
-      trafficSources: [{ source: 'Direct', users: totals.users, sessions: totals.sessions, bounceRate: avgBounceRate }],
-      devices: devices.length > 0 ? devices : [
-        { device: 'Desktop', users: Math.ceil(totals.users * 0.5), sessions: Math.ceil(totals.sessions * 0.5), bounceRate: avgBounceRate },
-        { device: 'Mobile', users: Math.floor(totals.users * 0.5), sessions: Math.floor(totals.sessions * 0.5), bounceRate: avgBounceRate }
-      ],
-      countries: [{ country: 'United States', users: totals.users, sessions: totals.sessions }],
+      topPages: topPages,
+      trafficSources: trafficSources,
+      devices: devices,
+      countries: [], // Countries data not implemented yet
       dateRange,
     };
 
@@ -249,13 +299,16 @@ export default async function handler(req, res) {
   try {
     const propertyId = process.env.GA_PROPERTY_ID;
 
+    // Get days parameter from query, default to 30
+    const days = parseInt(req.query.days) || 30;
+
     // Return mock data if no credentials or property ID
     if (!process.env.GOOGLE_CLIENT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY || !propertyId) {
       console.log('Using mock data - no GA credentials configured');
-      return res.json(generateMockData());
+      return res.json(generateMockData(days));
     }
 
-    const dateRange = getDateRange(30);
+    const dateRange = getDateRange(days);
     const authClient = await auth.getClient();
 
     console.log(`Fetching real GA4 data for property: ${propertyId}`);
