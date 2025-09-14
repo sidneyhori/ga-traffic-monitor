@@ -1,0 +1,36 @@
+{
+  "name": "ga-traffic-monitor",
+  "version": "1.0.0",
+  "description": "A simple app to monitor Google Analytics traffic when GA dashboard is having issues",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "node server.js"
+  },
+  "keywords": ["google-analytics", "monitoring", "traffic", "dashboard"],
+  "author": "Sidney Horihawthorne",
+  "license": "MIT",
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "googleapis": "^126.0.1",
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "recharts": "^2.8.0",
+    "lucide-react": "^0.292.0",
+    "tailwindcss": "^3.3.5",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.31"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.37",
+    "@types/react-dom": "^18.2.15",
+    "@vitejs/plugin-react": "^4.1.1",
+    "vite": "^4.5.0",
+    "typescript": "^5.2.2"
+  }
+}
