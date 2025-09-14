@@ -133,8 +133,8 @@ const generateMockData = () => {
 // GA4 Data fetching functions (simplified for Vercel)
 async function fetchGA4Data(authClient, propertyId, dateRange) {
   try {
-    // Get basic metrics
-    const response = await analyticsData.properties.runReport({
+    // Get basic metrics with date dimension
+    const timeSeriesResponse = await analyticsData.properties.runReport({
       auth: authClient,
       property: `properties/${propertyId}`,
       requestBody: {
@@ -151,7 +151,24 @@ async function fetchGA4Data(authClient, propertyId, dateRange) {
       },
     });
 
-    const rows = response.data.rows || [];
+    // Get device breakdown
+    const deviceResponse = await analyticsData.properties.runReport({
+      auth: authClient,
+      property: `properties/${propertyId}`,
+      requestBody: {
+        dateRanges: [{ startDate: dateRange.startDate, endDate: dateRange.endDate }],
+        metrics: [
+          { name: 'activeUsers' },
+          { name: 'sessions' },
+          { name: 'bounceRate' },
+        ],
+        dimensions: [{ name: 'deviceCategory' }],
+        orderBys: [{ metric: { metricName: 'activeUsers' }, desc: true }],
+      },
+    });
+
+    const rows = timeSeriesResponse.data.rows || [];
+    const deviceRows = deviceResponse.data.rows || [];
 
     // Process chart data
     const chartData = rows.map(row => ({
@@ -160,6 +177,14 @@ async function fetchGA4Data(authClient, propertyId, dateRange) {
       sessions: parseInt(row.metricValues[1].value || 0),
       pageviews: parseInt(row.metricValues[2].value || 0),
       bounceRate: parseFloat(row.metricValues[3].value || 0) * 100,
+    }));
+
+    // Process device data
+    const devices = deviceRows.map(row => ({
+      device: row.dimensionValues[0].value,
+      users: parseInt(row.metricValues[0].value || 0),
+      sessions: parseInt(row.metricValues[1].value || 0),
+      bounceRate: parseFloat(row.metricValues[2].value || 0) * 100,
     }));
 
     // Calculate totals
@@ -189,7 +214,10 @@ async function fetchGA4Data(authClient, propertyId, dateRange) {
       chartData,
       topPages: [{ page: '/', pageviews: totals.pageviews, uniquePageviews: totals.pageviews, bounceRate: avgBounceRate, avgTimeOnPage: avgDuration }],
       trafficSources: [{ source: 'Direct', users: totals.users, sessions: totals.sessions, bounceRate: avgBounceRate }],
-      devices: [{ device: 'Desktop', users: Math.ceil(totals.users * 0.6), sessions: Math.ceil(totals.sessions * 0.6), bounceRate: avgBounceRate }],
+      devices: devices.length > 0 ? devices : [
+        { device: 'Desktop', users: Math.ceil(totals.users * 0.5), sessions: Math.ceil(totals.sessions * 0.5), bounceRate: avgBounceRate },
+        { device: 'Mobile', users: Math.floor(totals.users * 0.5), sessions: Math.floor(totals.sessions * 0.5), bounceRate: avgBounceRate }
+      ],
       countries: [{ country: 'United States', users: totals.users, sessions: totals.sessions }],
       dateRange,
     };

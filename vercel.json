@@ -3,10 +3,5 @@
     "api/analytics.js": {
       "maxDuration": 30
     }
-  },
-  "env": {
-    "GA_PROPERTY_ID": "@ga_property_id",
-    "GOOGLE_CLIENT_EMAIL": "@google_client_email",
-    "GOOGLE_PRIVATE_KEY": "@google_private_key"
   }
 }
