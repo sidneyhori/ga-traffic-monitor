@@ -1,5 +1,6 @@
 import React from 'react'
 import { Users, Eye, MousePointer, Clock, TrendingUp, TrendingDown, HelpCircle } from 'lucide-react'
+import FunnelChart from './FunnelChart'
 import {
   LineChart,
   Line,
@@ -20,11 +21,12 @@ import { AnalyticsData } from '../types/analytics'
 
 interface DashboardProps {
   data: AnalyticsData
+  funnelData?: any
 }
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4']
 
-const Dashboard: React.FC<DashboardProps> = ({ data }) => {
+const Dashboard: React.FC<DashboardProps> = ({ data, funnelData }) => {
   const formatNumber = (num: number): string => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`
     if (num >= 1000) return `${(num / 1000).toFixed(1)}K`
@@ -237,6 +239,13 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
           )}
         </div>
       </div>
+
+      {/* Funnel Chart */}
+      {funnelData && (
+        <div className="mb-6">
+          <FunnelChart data={funnelData} />
+        </div>
+      )}
 
       {/* Tables Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

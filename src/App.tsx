@@ -5,8 +5,11 @@ import { AnalyticsData } from './types/analytics'
 
 function App() {
   const [data, setData] = useState<AnalyticsData | null>(null)
+  const [funnelData, setFunnelData] = useState<any | null>(null)
   const [loading, setLoading] = useState(true)
+  const [funnelLoading, setFunnelLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [funnelError, setFunnelError] = useState<string | null>(null)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [timeRange, setTimeRange] = useState<number>(30)
 
@@ -31,11 +34,35 @@ function App() {
     }
   }
 
+  const fetchFunnelData = async () => {
+    try {
+      setFunnelLoading(true)
+      setFunnelError(null)
+
+      const response = await fetch(`/api/events?days=${timeRange}`)
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const funnelData = await response.json()
+      setFunnelData(funnelData)
+    } catch (err) {
+      setFunnelError(err instanceof Error ? err.message : 'Failed to fetch funnel data')
+      console.error('Error fetching funnel data:', err)
+    } finally {
+      setFunnelLoading(false)
+    }
+  }
+
+  const fetchAllData = async () => {
+    await Promise.all([fetchAnalyticsData(), fetchFunnelData()])
+  }
+
   useEffect(() => {
-    fetchAnalyticsData()
+    fetchAllData()
 
     // Auto-refresh every 5 minutes
-    const interval = setInterval(fetchAnalyticsData, 5 * 60 * 1000)
+    const interval = setInterval(fetchAllData, 5 * 60 * 1000)
     return () => clearInterval(interval)
   }, [timeRange])
 
@@ -59,11 +86,11 @@ function App() {
               )}
 
               <button
-                onClick={fetchAnalyticsData}
-                disabled={loading}
+                onClick={fetchAllData}
+                disabled={loading || funnelLoading}
                 className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <RefreshCw className={`h-4 w-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`h-4 w-4 mr-1 ${(loading || funnelLoading) ? 'animate-spin' : ''}`} />
                 Refresh
               </button>
             </div>
@@ -100,15 +127,16 @@ function App() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {error && (
+        {(error || funnelError) && (
           <div className="mb-6 bg-red-50 border border-red-200 rounded-md p-4">
             <div className="flex items-center">
               <AlertCircle className="h-5 w-5 text-red-400 mr-2" />
-              <h3 className="text-sm font-medium text-red-800">Error loading analytics data</h3>
+              <h3 className="text-sm font-medium text-red-800">Error loading data</h3>
             </div>
-            <p className="mt-2 text-sm text-red-700">{error}</p>
+            {error && <p className="mt-2 text-sm text-red-700">Analytics: {error}</p>}
+            {funnelError && <p className="mt-2 text-sm text-red-700">Funnel: {funnelError}</p>}
             <button
-              onClick={fetchAnalyticsData}
+              onClick={fetchAllData}
               className="mt-3 text-sm bg-red-100 hover:bg-red-200 text-red-800 px-3 py-1 rounded border border-red-300"
             >
               Try Again
@@ -124,7 +152,7 @@ function App() {
         )}
 
         {data && !loading && (
-          <Dashboard data={data} />
+          <Dashboard data={data} funnelData={funnelData} />
         )}
 
         {!data && !loading && !error && (
