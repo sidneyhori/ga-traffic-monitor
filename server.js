@@ -29,8 +29,20 @@ const formatDate = (date) => {
   return date.toISOString().split('T')[0];
 };
 
+const DEFAULT_DAYS = 30;
+
+const parseDays = (value, fallback = DEFAULT_DAYS) => {
+  const parsed = parseInt(value, 10);
+
+  if (Number.isNaN(parsed) || parsed <= 0) {
+    return fallback;
+  }
+
+  return parsed;
+};
+
 // Helper function to get date range
-const getDateRange = (days = 30) => {
+const getDateRange = (days = DEFAULT_DAYS) => {
   const endDate = new Date();
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
@@ -42,7 +54,7 @@ const getDateRange = (days = 30) => {
 };
 
 // Helper function to get comparison period
-const getComparisonDateRange = (days = 30) => {
+const getComparisonDateRange = (days = DEFAULT_DAYS) => {
   const endDate = new Date();
   endDate.setDate(endDate.getDate() - days);
   const startDate = new Date();
@@ -55,12 +67,13 @@ const getComparisonDateRange = (days = 30) => {
 };
 
 // Mock data generator for development/demo
-const generateMockData = () => {
-  const dateRange = getDateRange(30);
+const generateMockData = (days = DEFAULT_DAYS) => {
+  const totalDays = parseDays(days);
+  const dateRange = getDateRange(totalDays);
   const chartData = [];
 
-  // Generate 30 days of mock data
-  for (let i = 29; i >= 0; i--) {
+  // Generate mock data matching requested range
+  for (let i = totalDays - 1; i >= 0; i--) {
     const date = new Date();
     date.setDate(date.getDate() - i);
 
@@ -378,26 +391,27 @@ async function fetchGA4Countries(authClient, propertyId, dateRange) {
 
 // Analytics API endpoint
 app.get('/api/analytics', async (req, res) => {
+  const days = parseDays(req.query.days);
   try {
     const propertyId = process.env.GA_PROPERTY_ID;
 
     // For development or if no credentials, return mock data
     if (process.env.NODE_ENV === 'development' && !propertyId) {
       console.log('Returning mock data for development (no property ID configured)');
-      return res.json(generateMockData());
+      return res.json(generateMockData(days));
     }
 
     if (!process.env.GOOGLE_CLIENT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY) {
       console.log('Returning mock data (no Google credentials configured)');
-      return res.json(generateMockData());
+      return res.json(generateMockData(days));
     }
 
     if (!propertyId) {
       throw new Error('GA_PROPERTY_ID not configured');
     }
 
-    const dateRange = getDateRange(30);
-    const comparisonDateRange = getComparisonDateRange(30);
+    const dateRange = getDateRange(days);
+    const comparisonDateRange = getComparisonDateRange(days);
     const authClient = await auth.getClient();
 
     console.log(`Fetching real GA4 data for property: ${propertyId}`);
@@ -429,7 +443,7 @@ app.get('/api/analytics', async (req, res) => {
     console.error('Full error:', error);
 
     // Return mock data with error indication in development
-    const mockData = generateMockData();
+    const mockData = generateMockData(days);
     mockData.error = `API Error: ${error.message}`;
     mockData.isRealData = false;
 
@@ -438,7 +452,7 @@ app.get('/api/analytics', async (req, res) => {
 });
 
 // Mock funnel data generator
-const generateMockFunnelData = (days = 30) => {
+const generateMockFunnelData = (days = DEFAULT_DAYS) => {
   const baseUsers = Math.floor(Math.random() * 5000) + 10000;
 
   return {
@@ -580,9 +594,9 @@ async function fetchGA4Events(authClient, propertyId, dateRange) {
 
 // Events/Funnel endpoint
 app.get('/api/events', async (req, res) => {
+  const days = parseDays(req.query.days);
   try {
     const propertyId = process.env.GA_PROPERTY_ID;
-    const days = parseInt(req.query.days) || 30;
 
     // Return mock data if no credentials or property ID
     if (!process.env.GOOGLE_CLIENT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY || !propertyId) {
@@ -602,7 +616,7 @@ app.get('/api/events', async (req, res) => {
     console.error('Events API Error:', error.message);
 
     // Return mock data with error indication
-    const mockData = generateMockFunnelData(parseInt(req.query.days) || 30);
+    const mockData = generateMockFunnelData(days);
     mockData.error = `API Error: ${error.message}`;
     mockData.isRealData = false;
 
